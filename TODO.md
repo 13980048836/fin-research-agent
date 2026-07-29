@@ -9,8 +9,8 @@
 
 | # | 事项 | 说明 / 预期 | 关联文件 / 参考 | 状态 |
 |---|------|------------|----------------|------|
-| 1 | **重置 DashScope API Key** | 已泄露在对话上下文，即使有 `.gitignore` 也必须**去阿里云百炼控制台作废**原 `sk-ws-H.EDLMIHI...` 并重建。本地 `.env` 同步替换新 Key。 | [.env#L6](.env#L6) | ⬜ 待办 |
-| 2 | **Git 初始化 + 首次 Commit** | 项目还没 `git init`。`git add .` 之前确认 `.gitignore` 生效（`.env` / `data/*.db` / `venv_new/` 不该出现在暂存区）。 | [.gitignore](.gitignore) | ⬜ 待办 |
+| 1 | **重置 DashScope API Key** | 已泄露在对话上下文，即使有 `.gitignore` 也必须**去阿里云百炼控制台作废**原 `sk-ws-H.EDLMIHI...` 并重建。本地 `.env` 同步替换新 Key。 | [.env#L6](.env#L6) | ⬜ 待办（你自己操作）|
+| 2 | **Git 初始化 + 推送到 GitHub** | ✅ commit `fe56b48`（45 个文件，11741 行），已推送。仓库地址：https://github.com/13980048836/fin-research-agent | [.gitignore](.gitignore) | ✅ 完成 |
 
 ---
 
