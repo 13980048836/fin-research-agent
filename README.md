@@ -730,23 +730,3 @@ pytest tests/test_integration.py -v -m "not slow"
 3. **测试**:新增功能必须附带单元测试,确保覆盖率不下降
 4. **文档**:新增/修改功能必须同步更新对应文档
 5. **提交信息**:使用 Conventional Commits 格式(`feat:`, `fix:`, `docs:` 等)
-
----
-
-## 📚 学习目标
-
-完成本项目后,你将掌握:
-- ✅ 多 Agent 协作架构(路由 + 编排 + 状态管理)
-- ✅ Text-to-SQL 工程实现(含 6 层安全防护)
-- ✅ RAG 全流程(加载→切分→向量化→检索→生成)
-- ✅ 文档切分策略对比与效果可视化
-- ✅ FastAPI 接口设计 + Streamlit 看板
-- ✅ 企业级容错(降级、重试、限流)
-- ✅ 测试驱动开发(TDD)
-- ✅ 工程化部署(Docker + 性能优化)
-
----
-
-## 📈 简历亮点(项目完成后可写)
-
-> 基于 LangChain + 通义千问实现企业级智能金融投研助手,采用多 Agent 协作架构(Router / Schema / SQL / Retriever / Analyst),支持 **Text-to-SQL 结构化数据分析** 与 **RAG 非结构化文档检索(PDF/PPT/TXT)** 双轮驱动。工程实现包含 RecursiveCharacterTextSplitter 文档切分、FAISS 向量检索、**6 层 SQL 注入防护**、只读事务隔离、流式输出、FastAPI + Streamlit 双形态接口、爬虫数据采集,具备完整单元测试与集成测试覆盖,支持 Docker 容器化部署。
