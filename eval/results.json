@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-07-29T12:00:00",
+  "top_k": 5,
+  "rag": {
+    "纯向量": {"recall": 1.0, "precision": 0.2, "mrr": 0.8907, "hit_rate": 1.0, "count": 18},
+    "纯BM25": {"recall": 0.9444, "precision": 0.1889, "mrr": 0.7083, "hit_rate": 0.9444, "count": 18},
+    "混合(RRF)": {"recall": 1.0, "precision": 0.2, "mrr": 0.7056, "hit_rate": 1.0, "count": 18},
+    "混合+MMR": {"recall": 0.8333, "precision": 0.1667, "mrr": 0.6361, "hit_rate": 0.8333, "count": 18}
+  },
+  "sql": {
+    "exec_success_rate": 1.0,
+    "result_match_rate": 1.0,
+    "table_hit_rate": 1.0,
+    "count": 12
+  }
+}

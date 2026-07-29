@@ -1,0 +1,51 @@
+# ==================== 开发环境 ====================
+.venv/
+venv/
+venv_*/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# ==================== IDE ====================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==================== 敏感文件 ====================
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets.json
+credentials.json
+
+# ==================== 数据文件 ====================
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+data/faiss_index/
+data/bm25_index.pkl
+data/docs/
+!data/docs/.gitkeep
+docs/*
+!docs/.gitkeep
+!docs/**/
+!docs/**/*.md
+
+# ==================== 临时文件 ====================
+*.log
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+
+# ==================== 测试 ====================
+.pytest_cache/
+.coverage
+htmlcov/
+reports/
