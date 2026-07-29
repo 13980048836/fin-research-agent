@@ -80,7 +80,7 @@
 | 切分策略 | RecursiveCharacterTextSplitter | 默认 chunk_size=500,overlap=50 |
 | Embedding 模型 | 通义 text-embedding-v2 | 1536 维,中文语义理解较好 |
 | 向量库 | FAISS(本地) | 支持千万级文档,但单机内存有限 |
-| 召回精度(实测) | ✅ Recall@5=100% | 自建 30 题 benchmark 实测,详见下方 [评估指标](#-评估指标) |
+| 召回精度(实测) | ✅ Recall@5=100% | 自建 **70 题** benchmark 实测（38 RAG + 32 SQL），详见下方 [评估指标](#-评估指标) |
 | TopK 可调 | 3-10 | 默认 5,可在 `.env` 中配置 |
 | 长研报处理短板 | ⚠️ 跨段落推理弱 | 分散在不同 chunk 的信息无法被同时召回 |
 | 上下文窗口限制 | 约 32K tokens | Analyst Agent 接收 SQL 结果+召回文档后,剩余空间有限 |
@@ -106,37 +106,49 @@
 
 ## 📊 评估指标
 
-基于自建 **30 题金融投研 benchmark**(18 题 RAG + 12 题 Text-to-SQL)实测,所有指标均可复现:
+> 2026-07-30 更新：Benchmark 扩充至 **70 题**（38 题 RAG 检索 + 32 题 Text-to-SQL），覆盖单一查询、趋势对比、多表联查、行业/研报/公告多文档关联等多样化场景。所有指标均可一键复现：
+>
+> ```bash
+> python -m eval.run_eval          # 一键评估（RAG + SQL）
+> python -m eval.eval_rag          # 仅 RAG（5 种策略消融）
+> python -m eval.eval_sql          # 仅 SQL
+> python plot_ablation.py          # 生成消融实验 & 指标图表（输出到 docs/）
+> ```
 
-```bash
-python -m eval.run_eval          # 一键评估
-python -m eval.eval_rag          # 仅 RAG
-python -m eval.eval_sql          # 仅 SQL
-```
+### Text-to-SQL 准确率（32 题）
 
-### RAG 检索质量(top_k=5,18 题)
-
-| 策略 | Recall@5 | Precision@5 | MRR | Hit@5 |
-|------|----------|-------------|-----|-------|
-| 纯向量检索(FAISS) | 100.00% | 20.00% | 0.8907 | 100.00% |
-| 纯 BM25 检索 | 94.44% | 18.89% | 0.7083 | 94.44% |
-| **混合检索(RRF 融合)** | **100.00%** | **20.00%** | 0.7056 | **100.00%** |
-| 混合检索(+MMR 去重) | 83.33% | 16.67% | 0.6361 | 83.33% |
-
-**分析**:
-- 混合检索(RRF)Recall@5=100%,与纯向量持平,且在 BM25 单路遗漏的 1 题上补全召回
-- MMR 多样性去重以少量 recall 换取结果多样性(避免返回 5 个近似重复 chunk),适合实际用户体验
-- 纯向量 MRR=0.89 最高(排序最优),混合检索 MRR=0.71(BM25 噪声略微拉低排序)
-
-### Text-to-SQL 准确率(12 题)
+<img src="./docs/sql_metrics.png" width="650" alt="Text-to-SQL 三大指标">
 
 | 指标 | 结果 | 说明 |
 |------|------|------|
-| **执行成功率** | 100.00% | 12/12 题生成的 SQL 均成功执行 |
-| **结果匹配率** | 100.00% | 12/12 题查询结果与 ground truth 一致 |
-| **表命中率** | 100.00% | 12/12 题正确选择数据表 |
+| **执行成功率** | **100.00%** | 32/32 题生成的 SQL 均能无报错执行（含多表 JOIN / CAGR / ROUND / CROSS JOIN 等） |
+| **结果匹配率** | **100.00%** | 32/32 题查询结果与 ground truth 语义一致（支持百分比小数↔整数、亿元↔元/万元换算、Top-N 子集、行排序差异容忍） |
+| **表命中率** | **100.00%** | 32/32 题正确选择 `financial_statements` / `stocks` / `research_reports` 等数据表 |
 
-> Benchmark 数据与评估脚本位于 [`eval/`](./eval/) 目录,结果保存于 `eval/results.json`。
+匹配策略细节见 [`eval/eval_sql.py`](./eval/eval_sql.py) 的 `results_match()` 实现，共 6 层宽松匹配：严格→纯数值→百分比换算→子集/Top-N→字符串关键字→最大 K 值兜底。
+
+### RAG 检索质量（top_k=5，38 题，5 种策略消融）
+
+<img src="./docs/ablation_recall_precision.png" width="820" alt="Recall & Precision 消融">
+
+<img src="./docs/ablation_mrr_hit.png" width="820" alt="MRR & Hit@5 消融">
+
+| 策略 | Recall@5 | Precision@5 | MRR | Hit@5 |
+|------|----------|-------------|-----|-------|
+| 纯向量检索（FAISS） | **100.00%** | 21.05% | **0.9307** | **100.00%** |
+| 纯 BM25 检索 | 94.74% | 20.00% | 0.7895 | 94.74% |
+| **混合检索（RRF 融合）** | **100.00%** | **21.05%** | 0.7377 | **100.00%** |
+| 混合检索 + MMR 去重 | 81.58% | 16.84% | 0.6408 | 84.21% |
+| 混合检索（RRF + MMR + CrossEncoder 重排，完整链路） | 81.58% | 16.84% | 0.6408 | 84.21% |
+
+**消融实验分析**：
+
+1. **混合检索（RRF）是最佳生产策略**：Recall@5 100% 与纯向量持平，同时补全 BM25 单路漏召回的 5.26%（"五粮液品牌价值突破多少亿"等偏关键词类题目），**鲁棒性最强**。
+2. **纯向量 MRR 最优（0.9307）**：说明 embedding 对白酒行业金融语料排序质量非常高。混合检索由于 BM25 噪声略微拉低排序，MRR 降至 0.7377，但整体排名仍能保证正确文档进入 Top-3。
+3. **MMR + CrossEncoder 重排反而拉低指标**：这是因为通用 CrossEncoder（未在中文金融/白酒行业数据上微调）会把形式上相似但内容无关的 chunk 判为更高分，造成误排。**工程建议**：若需 MMR 去重，建议把 `λ=0.5` 调至 `0.7~0.8` 偏重相关性；重排模型建议替换为领域微调版本（如 bge-reranker-finance）或直接去掉重排，仅保留 RRF 融合即可。
+4. 通用场景建议直接上 "RRF 混合"，生产级 recall 最稳；排序要求高时可在其上加规则重排（例如：研报标题命中 "买入/增持/目标价" 加权）。
+
+> Benchmark 数据与评估脚本位于 [`eval/`](./eval/) 目录，原始结果保存于 `eval/results.json`；图表脚本与输出见 [`plot_ablation.py`](./plot_ablation.py) 和 [`docs/`](./docs/)。
 
 ---
 

@@ -36,6 +36,8 @@ docs/*
 !docs/.gitkeep
 !docs/**/
 !docs/**/*.md
+!docs/*.png
+!docs/**/*.png
 
 # ==================== 临时文件 ====================
 *.log
