@@ -1,0 +1,66 @@
+# ==================== 金融投研助手 - 容器编排 ====================
+# 启动: docker compose up -d
+# 查看日志: docker compose logs -f
+# 停止: docker compose down
+# 重建: docker compose up -d --build
+
+services:
+  # ---------- FastAPI 后端服务 ----------
+  api:
+    build: .
+    container_name: fin-research-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DB_PATH=/app/data/finance.db
+      - FAISS_INDEX_PATH=/app/faiss_index
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./faiss_index:/app/faiss_index
+      - ./docs:/app/docs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ---------- Streamlit 前端服务 ----------
+  web:
+    build: .
+    container_name: fin-research-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - API_BASE_URL=http://api:8000
+    command: streamlit run streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./faiss_index:/app/faiss_index
+      - ./docs:/app/docs
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ---------- 一次性初始化服务（首次启动用）----------
+  init:
+    build: .
+    container_name: fin-research-init
+    env_file:
+      - .env
+    environment:
+      - DB_PATH=/app/data/finance.db
+      - FAISS_INDEX_PATH=/app/faiss_index
+    command: python -m init_data --force && python -c "from vector_store import VectorStore; VectorStore().build_index()"
+    volumes:
+      - ./data:/app/data
+      - ./faiss_index:/app/faiss_index
+      - ./docs:/app/docs
+    restart: "no"
+    profiles: ["init"]  # 只在 docker compose --profile init up 时运行

@@ -104,6 +104,79 @@
 
 ---
 
+## 🐳 Docker 一键部署
+
+项目提供完整的容器化方案，支持 `docker compose` 一键拉起前后端服务。
+
+### 快速启动
+
+```bash
+# 1. 配置环境变量
+cp .env.example .env
+# 编辑 .env，填入 DASHSCOPE_API_KEY
+
+# 2. 首次启动：构建镜像 + 初始化数据（数据库 + FAISS 索引）
+docker compose --profile init up -d --build
+
+# 3. 后续启动：直接起服务
+docker compose up -d
+
+# 4. 查看服务
+docker compose ps
+docker compose logs -f
+```
+
+### 服务访问
+
+| 服务 | 地址 | 说明 |
+|------|------|------|
+| Streamlit Web | http://localhost:8501 | 交互式投研看板 |
+| FastAPI API | http://localhost:8000 | RESTful API + SSE 流式 |
+| API 健康检查 | http://localhost:8000/health | 容器健康探针 |
+| API 文档 | http://localhost:8000/docs | Swagger 自动生成 |
+
+### 架构说明
+
+```
+┌──────────────────────────────────────────────────┐
+│  docker compose                                  │
+│                                                  │
+│  ┌─────────────┐         ┌─────────────────┐    │
+│  │  web (8501) │ ──────► │  api (8000)     │    │
+│  │  Streamlit  │  HTTP   │  FastAPI        │    │
+│  │             │         │  + Uvicorn      │    │
+│  └─────────────┘         └────────┬────────┘    │
+│                                   │              │
+│              ┌────────────────────┼──────┐      │
+│              ▼                    ▼      ▼      │
+│         ./data/             ./faiss_index/      │
+│         finance.db          向量索引            │
+│              │                                   │
+│              ▼                                   │
+│         DashScope API (Qwen)  ← 外部调用          │
+└──────────────────────────────────────────────────┘
+```
+
+### 镜像特性
+
+- **多阶段构建**：builder 阶段装编译工具链，runtime 阶段只保留 `libgomp1`，最终镜像 < 1.2GB
+- **层缓存优化**：`requirements.txt` 单独 COPY，依赖不变时秒级重建
+- **健康检查**：API 容器内置 `/health` 探针，web 依赖 api 健康后才启动
+- **数据持久化**：`./data`、`./faiss_index`、`./docs` 通过 volume 挂载，重建容器不丢数据
+- **环境隔离**：`.env` 通过 `env_file` 注入，密钥不进镜像
+
+### 常用命令
+
+```bash
+docker compose down              # 停止
+docker compose up -d --build     # 重建镜像
+docker compose logs -f api       # 看 API 日志
+docker compose exec api bash     # 进容器调试
+docker compose --profile init up # 重新初始化数据
+```
+
+---
+
 ## 📊 评估指标
 
 > 2026-07-30 更新：Benchmark 扩充至 **70 题**（38 题 RAG 检索 + 32 题 Text-to-SQL），覆盖单一查询、趋势对比、多表联查、行业/研报/公告多文档关联等多样化场景。所有指标均可一键复现：

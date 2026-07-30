@@ -1,0 +1,47 @@
+# ==================== 构建上下文排除 ====================
+# 减小镜像构建上下文体积，加速 build
+
+# 虚拟环境
+venv/
+venv_new/
+.venv/
+env/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# 项目运行产物（运行时挂载，不打进镜像）
+data/*.db
+faiss_index/
+docs/*.png
+
+# 临时/调试脚本
+_*.py
+_*.txt
+debug_*.py
+
+# 文档与示例
+*.md
+!README.md
+.env.example
+
+# 操作系统
+.DS_Store
+Thumbs.db
