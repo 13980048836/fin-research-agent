@@ -53,3 +53,7 @@ Thumbs.db
 .coverage
 htmlcov/
 reports/
+
+# ==================== 运行产物 ====================
+eval/results.json
+docs/__pycache__/
