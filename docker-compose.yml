@@ -1,11 +1,4 @@
-# ==================== 金融投研助手 - 容器编排 ====================
-# 启动: docker compose up -d
-# 查看日志: docker compose logs -f
-# 停止: docker compose down
-# 重建: docker compose up -d --build
-
 services:
-  # ---------- FastAPI 后端服务 ----------
   api:
     build: .
     container_name: fin-research-api
@@ -13,54 +6,246 @@ services:
     env_file:
       - .env
     environment:
-      - DB_PATH=/app/data/finance.db
-      - FAISS_INDEX_PATH=/app/faiss_index
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      DB_PATH: /app/data/finance.db
+      MILVUS_URI: http://milvus:19530
+      REDIS_URL: redis://redis:6379/0
+      LANGGRAPH_CHECKPOINTER: redis
+      LANGGRAPH_SQLITE_PATH: /app/data/checkpoints/langgraph.sqlite
+      BM25S_INDEX_PATH: /app/data/bm25s_index
+      FAISS_INDEX_PATH: /app/data/faiss_index
+      LANGSMITH_PROJECT: fin-research-langgraph
+    command: >
+      gunicorn fastapi_app:app
+      -k uvicorn.workers.UvicornWorker
+      -w ${API_WORKERS:-2}
+      -b 0.0.0.0:8000
+      --timeout ${API_WORKER_TIMEOUT:-90}
     ports:
       - "8000:8000"
     volumes:
       - ./data:/app/data
-      - ./faiss_index:/app/faiss_index
-      - ./docs:/app/docs
+    depends_on:
+      milvus:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4g
+        reservations:
+          memory: 1g
 
-  # ---------- Streamlit 前端服务 ----------
-  web:
+  dash:
     build: .
-    container_name: fin-research-web
+    container_name: fin-research-dash
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      - API_BASE_URL=http://api:8000
-    command: streamlit run streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+      API_BASE_URL: http://api:8000
+      DASH_HOST: 0.0.0.0
+      DASH_PORT: 8050
+    command: gunicorn dash_app:server -w ${DASH_WORKERS:-2} -b 0.0.0.0:8050 --timeout 90
     ports:
-      - "8501:8501"
-    volumes:
-      - ./data:/app/data
-      - ./faiss_index:/app/faiss_index
-      - ./docs:/app/docs
+      - "8050:8050"
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8050', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
 
-  # ---------- 一次性初始化服务（首次启动用）----------
-  init:
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: fin-research-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.18
+    container_name: fin-research-etcd
+    restart: unless-stopped
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+      ETCD_SNAPSHOT_COUNT: "50000"
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    volumes:
+      - etcd_data:/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: fin-research-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+    command: minio server /minio_data --console-address ":9001"
+    ports:
+      - "9001:9001"
+    volumes:
+      - minio_data:/minio_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+
+  milvus:
+    image: milvusdb/milvus:v2.5.4
+    container_name: fin-research-milvus
+    restart: unless-stopped
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      COMMON_STORAGETYPE: minio
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    volumes:
+      - milvus_data:/var/lib/milvus
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4g
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: fin-research-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: fin-research-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+
+  migrate:
     build: .
-    container_name: fin-research-init
+    container_name: fin-research-migrate
+    profiles: ["migration"]
     env_file:
       - .env
     environment:
-      - DB_PATH=/app/data/finance.db
-      - FAISS_INDEX_PATH=/app/faiss_index
-    command: python -m init_data --force && python -c "from vector_store import VectorStore; VectorStore().build_index()"
+      MILVUS_URI: http://milvus:19530
+      FAISS_INDEX_PATH: /app/data/faiss_index
+      BM25S_INDEX_PATH: /app/data/bm25s_index
+    command: python migrate_faiss_to_milvus.py --faiss-path /app/data/faiss_index --rebuild-bm25s
     volumes:
       - ./data:/app/data
-      - ./faiss_index:/app/faiss_index
-      - ./docs:/app/docs
+    depends_on:
+      milvus:
+        condition: service_healthy
     restart: "no"
-    profiles: ["init"]  # 只在 docker compose --profile init up 时运行
+
+volumes:
+  redis_data:
+  etcd_data:
+  minio_data:
+  milvus_data:
+  prometheus_data:
+  grafana_data:

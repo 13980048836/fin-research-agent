@@ -1,45 +1,52 @@
-# ===== LLM & Agent =====
+# ===== LangGraph / LangChain runtime =====
+langgraph>=0.2.60,<2.0.0
+langgraph-checkpoint-sqlite>=2.0.0,<4.0.0
+langgraph-checkpoint-redis>=0.0.8,<1.0.0
 langchain>=0.3.0,<0.4.0
 langchain-core>=0.3.0,<0.4.0
 langchain-community>=0.3.0,<0.4.0
-langchain-experimental>=0.3.0,<0.4.0
-langgraph>=0.2.0,<0.3.0
-langchain-mcp-adapters>=0.1.0
-dashscope>=1.20.0,<2.0.0
+langchain-text-splitters>=0.3.0,<0.4.0
+langsmith>=0.1.95,<1.0.0
+dashscope>=1.24.1,<2.0.0
 
-# ===== RAG =====
+# ===== RAG storage / retrieval =====
+pymilvus>=2.5.0,<3.0.0
+bm25s>=0.2.13,<1.0.0
+sentence-transformers>=3.0.0,<5.0.0
+numpy>=1.26.0,<3.0.0
 faiss-cpu>=1.9.0,<2.0.0
+
+# ===== Document parsing =====
 pypdf>=5.0.0,<6.0.0
 PyMuPDF>=1.24.0,<2.0.0
 python-pptx>=1.0.0,<2.0.0
 tiktoken>=0.7.0,<1.0.0
 sqlparse>=0.5.0,<1.0.0
-rank_bm25>=0.2.2,<1.0.0
-sentence-transformers>=3.0.0,<4.0.0
 
-# ===== PDF OCR (可选,扫描件 PDF 用) =====
-# paddleocr>=2.7.0  # 中文 OCR,安装较大,按需启用
-# pytesseract>=0.3.10  # 备选 OCR,需另装 Tesseract 引擎
+# ===== PDF OCR optional engines =====
+# paddleocr>=2.7.0
+# pytesseract>=0.3.10
 
-# ===== Database =====
-# sqlite3 是 Python 标准库,无需安装
+# ===== Visualization / frontend =====
+plotly>=5.24.0,<7.0.0
+dash>=2.18.0,<4.0.0
 
-# ===== Visualization =====
-plotly>=5.24.0,<6.0.0
-
-# ===== Web =====
+# ===== Web service =====
 fastapi>=0.115.0,<1.0.0
 uvicorn[standard]>=0.32.0,<1.0.0
-streamlit>=1.40.0,<2.0.0
-sse-starlette>=2.1.0,<3.0.0
+gunicorn>=23.0.0,<24.0.0
+slowapi>=0.1.9,<1.0.0
 pydantic>=2.9.0,<3.0.0
-
-# ===== Crawler =====
+python-multipart>=0.0.9,<1.0.0
+prometheus-client>=0.20.0,<1.0.0
 requests>=2.32.0,<3.0.0
 beautifulsoup4>=4.12.0,<5.0.0
 
 # ===== Utils =====
 python-dotenv>=1.0.0,<2.0.0
+
+# ===== Legacy UI kept during migration rollback window =====
+streamlit>=1.40.0,<2.0.0
 
 # ===== Testing =====
 pytest>=8.3.0,<9.0.0

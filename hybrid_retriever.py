@@ -174,8 +174,16 @@ class HybridRetriever:
                     "score": float(score),
                 })
             return results
-        except Exception:
-            return self.vector_store.similarity_search(query, k=k)
+        except Exception as e:
+            logger.warning("Vector search with score failed, falling back to plain search: %s", e)
+            docs = self.vector_store.similarity_search(query, k=k)
+            return [
+                {
+                    "doc": doc,
+                    "score": 0.0,
+                }
+                for doc in docs
+            ]
 
     def _doc_key(self, doc) -> int:
         """文档唯一标识（用内容前 200 字符 hash，避免 id() 不一致问题）"""
@@ -318,8 +326,8 @@ class HybridRetriever:
         top_k: int = 5,
         use_bm25: bool = True,
         use_vector: bool = True,
-        use_rerank: bool = True,
-        use_mmr: bool = True,
+        use_rerank: bool = False,
+        use_mmr: bool = False,
     ) -> list:
         """
         混合检索主入口

@@ -30,6 +30,8 @@ data/*.db-wal
 data/*.db-shm
 data/faiss_index/
 data/bm25_index.pkl
+data/langgraph_checkpoints.sqlite*
+data/milvus*.db*
 data/docs/
 !data/docs/.gitkeep
 docs/*

@@ -35,7 +35,7 @@ class LLMConfig:
     provider: str = field(default_factory=lambda: os.getenv("LLM_PROVIDER", "tongyi"))
     api_key: str = field(default_factory=lambda: os.getenv("DASHSCOPE_API_KEY", ""))
     base_url: str = field(default_factory=lambda: os.getenv("LLM_BASE_URL", ""))
-    model: str = field(default_factory=lambda: os.getenv("LLM_MODEL", "qwen-plus"))
+    model: str = field(default_factory=lambda: os.getenv("LLM_MODEL", "qwen3-max"))
     temperature: float = field(default_factory=lambda: float(os.getenv("LLM_TEMPERATURE", "0.1")))
     max_tokens: int = field(default_factory=lambda: int(os.getenv("LLM_MAX_TOKENS", "2048")))
     timeout: int = field(default_factory=lambda: int(os.getenv("LLM_TIMEOUT", "60")))
@@ -54,7 +54,7 @@ class EmbeddingConfig:
     """向量嵌入配置"""
     provider: str = field(default_factory=lambda: os.getenv("EMBEDDING_PROVIDER", "tongyi"))
     model: str = field(default_factory=lambda: os.getenv("EMBEDDING_MODEL", "text-embedding-v3"))
-    dimension: int = field(default_factory=lambda: int(os.getenv("EMBEDDING_DIMENSION", "1536")))
+    dimension: int = field(default_factory=lambda: int(os.getenv("EMBEDDING_DIMENSION", "1024")))
     batch_size: int = field(default_factory=lambda: int(os.getenv("EMBEDDING_BATCH_SIZE", "256")))
 
 
@@ -78,9 +78,35 @@ class FAISSConfig:
         default_factory=lambda: os.getenv("FAISS_INDEX_TYPE", "flat")
     )
     top_k: int = field(default_factory=lambda: int(os.getenv("FAISS_TOP_K", "5")))
+    rerank_enabled: bool = field(
+        default_factory=lambda: os.getenv("RAG_RERANK_ENABLED", "false").lower() == "true"
+    )
     mmr_enabled: bool = field(default_factory=lambda: os.getenv("FAISS_MMR_ENABLED", "false").lower() == "true")
     mmr_lambda: float = field(default_factory=lambda: float(os.getenv("FAISS_MMR_LAMBDA", "0.7")))
     score_threshold: float = field(default_factory=lambda: float(os.getenv("FAISS_SCORE_THRESHOLD", "0.3")))
+
+
+@dataclass
+class MilvusConfig:
+    """Milvus vector database configuration for the LangGraph stack."""
+    uri: str = field(default_factory=lambda: os.getenv("MILVUS_URI", "http://localhost:19530"))
+    token: str = field(default_factory=lambda: os.getenv("MILVUS_TOKEN", ""))
+    collection: str = field(default_factory=lambda: os.getenv("MILVUS_COLLECTION", "finance_report_chunks"))
+    vector_field: str = field(default_factory=lambda: os.getenv("MILVUS_VECTOR_FIELD", "vector"))
+    metric_type: str = field(default_factory=lambda: os.getenv("MILVUS_METRIC_TYPE", "COSINE"))
+    index_type: str = field(default_factory=lambda: os.getenv("MILVUS_INDEX_TYPE", "AUTOINDEX"))
+    batch_size: int = field(default_factory=lambda: int(os.getenv("MILVUS_BATCH_SIZE", "128")))
+
+
+@dataclass
+class GraphConfig:
+    """LangGraph runtime controls."""
+    checkpointer: Literal["sqlite", "redis"] = field(
+        default_factory=lambda: os.getenv("LANGGRAPH_CHECKPOINTER", "sqlite")
+    )
+    recursion_limit: int = field(default_factory=lambda: int(os.getenv("LANGGRAPH_RECURSION_LIMIT", "8")))
+    relevance_threshold: float = field(default_factory=lambda: float(os.getenv("RAG_RELEVANCE_THRESHOLD", "0.35")))
+    max_rewrite_retries: int = field(default_factory=lambda: int(os.getenv("RAG_MAX_REWRITE_RETRIES", "1")))
 
 
 @dataclass
@@ -146,6 +172,8 @@ class AppConfig:
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     faiss: FAISSConfig = field(default_factory=FAISSConfig)
+    milvus: MilvusConfig = field(default_factory=MilvusConfig)
+    graph: GraphConfig = field(default_factory=GraphConfig)
     splitter: SplitterConfig = field(default_factory=SplitterConfig)
     cleaner: CleanerConfig = field(default_factory=CleanerConfig)
     pdf: PDFConfig = field(default_factory=PDFConfig)
